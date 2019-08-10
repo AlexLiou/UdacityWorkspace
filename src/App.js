@@ -1,61 +1,58 @@
-import React from 'react';
-import * as BooksAPI from './BooksAPI';
-import './App.css';
-import {Route, Switch} from 'react-router-dom';
-import NotFound from './NotFound.js';
-import SearchPage from './SearchPage.js';
-import Library from './Library.js';
-import {Link} from 'react-router-dom';
-import Books from './Books'
+import React from 'react'
+import { BrowserRouter, Route } from 'react-router-dom'
+import * as BooksAPI from './BooksAPI'
+import List from './List'
+import SearchPage from './SearchPage'
+import './App.css'
 
 class BooksApp extends React.Component {
   state = {
     books: []
-  };
+  }
 
-	componentDidMount() {
-      Books.API.getAll().then(books => this.setState({books}));
-    }
+  async componentDidMount() {
+    const books = await BooksAPI.getAll()
+	this.setState({
+      books
+      })
+  }
 
-	changeShelf = (changedBook, shelf) => {
-      BooksAPI.update(changedBook, shelf).then(response => {
-        changedBook.shelf = shelf;
-        this.setState(prevState => ({
-          books: prevState.book
-          	.filter(book => book.id !== changedBook.id)
-          	.concat(changedBook)
-        }));
-      });
-    };
-  render() {
+  handleShelfUpdate = (book, shelf) => {
+    const index = this.state.books.indexOf(book)
+    const updatedBooks = [...this.state.books]
     
-    const { books } = this.state;
+    if (shelf === 'none') {
+      // Removes books
+      updatedBooks.splice(index, 1)
+    } else if (book.shelf === 'none') {
+      const updatedBook = {...book, shelf}
+      updatedBooks.push(updatedBook)
+    } else {
+      //updates shelf location
+      const updatedBook = {...book, shelf}
+      //overwrite existing books
+      updatedBooks[index] = updatedBook
+    }
+    
+    BooksAPI.update(book, shelf).then(() => {
+      this.setState({
+        books: updatedBooks
+      })
+    })
+  }
+
+  render() {
     return (
-      <div className="app">
-      	<Switch>
-      		<Route
-      			path="/search"
-      			render={() => (
-      				<SearchPage books={books} changeShelf={this.changeShelf}/>
-    			)}
-			/>
-			<Route
-				exact path="/"
-				render={() => (
-                  <div className="list-books">
-                  	<div className="list-books-title">
-                  		<h1>MyReads</h1>
-                  	</div>
-                  	<Library books={books} changeShelf={this.changeShelf}/>
-					<div className="open-search">
-						<Link to="/search">Search</Link>
-					</div>
-                  </div>
-                )}
-			/>
-			<Route component={NotFound}/>
-      	</Switch>
-      </div>
+    	<BrowserRouter basename={process.env.REACT_APP_BASENAME}>
+    		<div className='app'>
+    			<Route exact path='/' render={() => (
+                  <List books={this.state.books} onShelfUpdate={this.handleShelfUpdate} />
+                )} />
+				<Route path='/search' render={() => (
+                   <SearchPage books={this.state.books} onShelfUpdate={this.handleShelfUpdate} />
+                )} />
+    		</div>
+    	</BrowserRouter>
     )
   }
 }
